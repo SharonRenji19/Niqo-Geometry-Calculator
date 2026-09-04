@@ -1,9 +1,12 @@
 # Geometric Calculator
 
-A small REPL for defining 2D shapes and querying their measurements.
-Implements **Point**, **Line**, **Circle**, **Rectangle**, **Union**, and
-**Intersection** (combining/overlapping two shapes), with distance
-supported between every pair of shape types.
+A small REPL for defining 2D and 3D shapes and querying their
+measurements. 2D: **Point**, **Line**, **Circle**, **Rectangle**,
+**Union**, and **Intersection** (combining/overlapping two shapes). 3D:
+**Point3D**, **Line3D**, **Sphere**, **Box**. Distance is supported
+between every pair of shape types *within* the same dimensionality
+(2D-2D and 3D-3D); mixing a 2D and a 3D shape raises a clear error
+rather than silently doing something wrong — see "Assumptions".
 
 ## Setup & Running (step-by-step)
 
@@ -87,6 +90,18 @@ uUnion((center=(5, 0), r=4), (x: 0..6, y: -3..3))
 iIntersection((center=(0, 0), r=5), (x: 3..9, y: 3..9))
 > i.area()
 0.54674
+> p3d = Point3D(0, 0, 0)
+p3d(0, 0, 0)
+> sph = Sphere(Point3D(10, 0, 0), 4)
+sph(center=(10, 0, 0), r=4)
+> p3d.distance(sph)
+6
+> box = Box(Point3D(0, 0, 0), Point3D(5, 5, 5))
+box(x: 0..5, y: 0..5, z: 0..5)
+> box.volume()
+125
+> box.area()
+150
 ```
 
 ## Design
@@ -163,6 +178,36 @@ iIntersection((center=(0, 0), r=5), (x: 3..9, y: 3..9))
   coverage for both: disjoint vs. overlapping shapes, identical/nested
   circles, Point/Line as one operand, and argument validation. Run with:
   `python3 -m unittest discover -s tests`.
+- `shapes/shape3d.py`, `shapes/point3d.py`, `shapes/line3d.py`,
+  `shapes/sphere.py`, `shapes/box.py` — the 3D shapes, following the
+  same overall pattern as their 2D counterparts (each shape handles
+  distance to shapes "simpler" than itself directly and delegates
+  upward only where that's guaranteed to terminate). Two things needed
+  genuinely new math rather than a straightforward 2D→3D port:
+  - **Line3D-Line3D distance** — in 2D, two non-parallel segments either
+    intersect (distance 0) or don't; in 3D, two segments can be
+    **skew** — not parallel, and never intersecting, like two edges of
+    a box on different faces. `Line3D._distance_to_line` uses the
+    standard closest-point-between-two-segments algorithm (clamped
+    parametric projection onto each segment, handling the degenerate
+    parallel/point cases separately) rather than a 2D-style
+    intersection check.
+  - **Box-Line3D distance** — in 2D, `Rectangle`'s boundary is a closed
+    curve (4 edges), so checking just those edges against the line is
+    enough, since the closest point on a convex 2D region to an
+    outside point always lies on that boundary curve. A 3D `Box`'s
+    boundary is a *surface* (6 faces), and the closest point can land
+    in the middle of a flat face — not on any of the 12 edges — so an
+    edges-only check (the naive 2D-style approach) would sometimes
+    report too large a distance. Instead, `Box._distance_to_line` uses
+    the fact that distance-from-a-point-to-a-box is a convex function,
+    and a point moving along a segment is an affine function of the
+    segment parameter `t` — so distance-to-box as a function of `t` is
+    also convex, meaning **ternary search** over `t ∈ [0, 1]` finds the
+    true minimum (this also makes a separate "does the segment
+    intersect the box" check unnecessary — the search just finds 0
+    naturally when it does). See "Known issues" for why this is a
+    numerical method rather than a closed-form one.
 - `repl.py` — a small hand-written interpreter:
   - **Tokenizer** (`tokenize`) — regex-based, splits an input line into
     NUMBER / NAME / OP tokens.
@@ -212,7 +257,45 @@ of which are language/arithmetic utilities rather than geometry logic.
   (e.g. a point inside a circle, two overlapping rectangles) is `0.0`,
   not negative — distance never goes negative in this calculator.
 
+## Additional assumptions (3D: Point3D, Line3D, Sphere, Box)
+
+- **3D shapes use a separate `Shape3D` interface with `area()` +
+  `volume()` instead of `Shape`'s `area()` + `perimeter()`.**
+  "Perimeter" is a 2D boundary-*length* concept; a solid's boundary is
+  a surface, so the natural measurements are surface **area** and
+  **volume** instead. `area()` on a 3D shape means *surface* area
+  (e.g. `Sphere.area()` is `4πr²`, not the circle's `πr²`).
+- **2D and 3D shapes cannot be mixed** — `Point3D(...).distance(Point(...))`
+  raises `TypeError` rather than guessing an interpretation (e.g.
+  silently treating the 2D point as having `z=0`). This wasn't the
+  assignment's Point/Line/Circle/Rectangle model to begin with, and
+  guessing felt like the wrong kind of "fair assumption."
+- `Box` is axis-aligned, exactly like `Rectangle` in 2D — same
+  rationale (rotated boxes need real 3D linear algebra for very little
+  payoff here).
+- `Sphere` requires a strictly positive radius, same as `Circle`.
+
 ## Known issues / not yet implemented
+
+- **`Box.distance(Line3D)` uses ternary search (a numerical method),
+  not a closed-form formula.** In 2D, `Rectangle`'s distance to a `Line`
+  only needs to check the rectangle's 4 boundary edges, because the
+  closest point on a convex 2D shape's boundary to an outside point
+  always lies on that boundary. A 3D `Box`'s boundary is a surface (6
+  faces), and the closest point can land in the *middle* of a face —
+  not on any of the 12 edges — so deriving this by hand would mean
+  correctly classifying which of a face/edge/corner is closest for
+  every possible line orientation (dozens of cases). Instead,
+  `Box._distance_to_line` exploits that distance-to-a-box is a convex
+  function of position along the segment, and finds its minimum via
+  ternary search (100 iterations, converging well past floating-point
+  precision — this is exact for all practical purposes, unlike the
+  Circle-Rectangle Monte Carlo case below, which is a genuine
+  approximation). Verified against hand-derived cases including the
+  specific scenario that would break an edges-only approach (a line
+  hovering directly over the *center* of a face) — see
+  `tests/test_box.py`.
+
 
 - **Overlap *area* for Circle + Rectangle is approximate, not exact** (its
   *perimeter* is exact — see below). There's no simple closed-form
