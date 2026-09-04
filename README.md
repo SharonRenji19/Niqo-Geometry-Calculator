@@ -16,16 +16,16 @@ extra tool, `pytest`, which is optional — see below).
 
 1. **Check your Python version.**
    ```bash
-   python3 --version
+   python3/python --version
    ```
    Needs to say `3.10` or higher (the code uses modern type hints like
    `list[Token]` and `X | None`).
 
-   **On Windows**, `python3` commonly isn't set up — running it may
+   **On Windows**, `**python3**` commonly isn't set up — running it may
    print a message about installing Python from the Microsoft Store
-   even when Python is already installed. Use `python` instead
+   even when Python is already installed. Use `**python**` instead
    (`py` also works if that's set up on your machine); the rest of the
-   commands below are identical either way, just swap `python3` for
+   commands below are identical either way, just swap `**python3**` for
    whichever one resolves on your system.
 
 2. **Get the code.** Either clone the repo:
@@ -39,7 +39,7 @@ extra tool, `pytest`, which is optional — see below).
 
 3. **Run it — no build step, no install step:**
    ```bash
-   python3 repl.py
+   python3/python repl.py
    ```
    You should see:
    ```
@@ -61,10 +61,10 @@ extra tool, `pytest`, which is optional — see below).
    verifies all the area/perimeter/distance math without needing the
    REPL at all:
    ```bash
-   python3 -m unittest discover -s tests
+   python3/python -m unittest discover -s tests
    ```
    Expect `OK` at the bottom with all tests passing. If `pytest` is
-   installed (`pip install pytest`), `python3 -m pytest` works too and
+   installed (`pip install pytest`), `python3/python -m pytest` works too and
    gives slightly more detailed output.
 
 No external dependencies, virtual environment, or `pip install` are
@@ -183,7 +183,7 @@ box(x: 0..5, y: 0..5, z: 0..5)
 
   coverage for both: disjoint vs. overlapping shapes, identical/nested
   circles, Point/Line as one operand, and argument validation. Run with:
-  `python3 -m unittest discover -s tests`.
+  `python3/python -m unittest discover -s tests`.
 - `shapes/shape3d.py`, `shapes/point3d.py`, `shapes/line3d.py`,
   `shapes/sphere.py`, `shapes/box.py` — the 3D shapes, following the
   same overall pattern as their 2D counterparts (each shape handles
