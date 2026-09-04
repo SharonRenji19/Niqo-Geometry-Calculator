@@ -63,10 +63,14 @@ iIntersection((center=(0, 0), r=5), (x: 3..9, y: 3..9))
     back and forth forever.
 - `shapes/_overlap.py` — shared "how much do these two shapes overlap"
   math used by both `Union` and `Intersection`, so the overlap-area (and,
-  for a couple of pairs, overlap-perimeter) logic exists in exactly one
-  place: exact formulas for Circle-Circle and Rectangle-Rectangle, Monte
-  Carlo sampling for Circle-Rectangle, and a free `0.0` for anything
-  involving a Point/Line.
+  for a few pairs, overlap-perimeter) logic exists in exactly one
+  place: exact formulas for Circle-Circle and Rectangle-Rectangle overlap
+  area/perimeter, Monte Carlo sampling for Circle-Rectangle *area*, a
+  free `0.0` for anything involving a Point/Line, and `fully_contains()`
+  — a cheap, *exact* "does shape A completely swallow shape B" test for
+  all four Circle/Rectangle combinations (no sampling needed even for
+  Circle-Rectangle, since full containment is a much easier question
+  than the exact overlap boundary).
 - `shapes/union.py` — `Union(shape_a, shape_b)`, the combined region
   covered by either shape ("A or B"). It's a `Shape` itself, so it
   supports `area()` / `perimeter()` / `distance(other)` like everything
@@ -74,9 +78,14 @@ iIntersection((center=(0, 0), r=5), (x: 3..9, y: 3..9))
   two shapes.
   - `area()` uses inclusion-exclusion: `|A| + |B| - |A ∩ B|`, via
     `_overlap.intersection_area()`.
-  - `perimeter()` returns the exact sum of the two members' perimeters
-    when they don't touch or overlap, and raises `NotImplementedError`
-    with an explanatory message when they do (see "Known issues").
+  - `perimeter()` is exact for disjoint shapes (plain sum), full
+    containment of any shape pair (just the containing shape's own
+    perimeter), Circle-Circle overlap (each circle's circumference minus
+    the swallowed arc), and Rectangle-Rectangle overlap
+    (`perimeter(A) + perimeter(B) - perimeter(overlap)`). Only a
+    *partial* Circle-Rectangle overlap raises `NotImplementedError` (see
+    "Known issues") — that's the one boundary shape (straight edges +
+    a circular arc) this project doesn't construct.
   - `distance(other)` is `min(shape_a.distance(other), shape_b.distance(other))`
     — the union's closest point to another shape is whichever member is closer.
   - `contains(point)` is `shape_a.contains(point) or shape_b.contains(point)`.
@@ -88,16 +97,21 @@ iIntersection((center=(0, 0), r=5), (x: 3..9, y: 3..9))
   - `area()` calls the same `_overlap.intersection_area()` `Union` uses
     (exact for Circle-Circle/Rectangle-Rectangle/anything with a
     Point-Line, Monte Carlo for Circle-Rectangle).
-  - `perimeter()` is exact for Circle-Circle (arc-length formula for the
-    lens shape) and Rectangle-Rectangle (the overlap is itself a
-    rectangle), `0.0` when there's no overlap, and raises
-    `NotImplementedError` for Circle-Rectangle (see "Known issues").
+  - `perimeter()` is exact for full containment of any shape pair (the
+    intersection is just the *smaller*, fully-swallowed shape's own
+    perimeter), Circle-Circle (arc-length formula for the lens shape),
+    and Rectangle-Rectangle (the overlap is itself a rectangle); `0.0`
+    when there's no overlap at all; and raises `NotImplementedError`
+    only for a genuine *partial* Circle-Rectangle overlap (see "Known
+    issues").
   - `distance(other)` returns `math.inf` when the two shapes don't
-    overlap at all (an empty region has no closest point) and raises
-    `NotImplementedError` for a genuine non-empty overlap (see "Known
+    overlap at all (an empty region has no closest point), the smaller
+    shape's own `distance(other)` for full containment, and raises
+    `NotImplementedError` for a genuine *partial* overlap (see "Known
     issues").
   - `contains(point)` is `shape_a.contains(point) and shape_b.contains(point)`.
 - `tests/test_union.py`, `tests/test_intersection.py` — `unittest`
+
   coverage for both: disjoint vs. overlapping shapes, identical/nested
   circles, Point/Line as one operand, and argument validation. Run with:
   `python3 -m unittest discover -s tests`.
@@ -162,26 +176,40 @@ of which are language/arithmetic utilities rather than geometry logic.
   box, fixed seed `1729` for determinism), which is typically within
   ~0.5% of the true value. Every other shape pair (Circle-Circle,
   Rectangle-Rectangle, and anything involving a Point/Line) is exact.
-- **`Union.perimeter()`/`Intersection.perimeter()` don't support a
-  Circle-Rectangle overlap**, and `Union.perimeter()` more broadly
-  doesn't support *any* overlapping pair. Tracing the exact merged (or
-  clipped) boundary where a straight edge meets a circular arc needs
-  polygon-clipping/boundary-tracing machinery that's out of scope here.
-  Both raise a clear `NotImplementedError` rather than returning a wrong
-  number; the cases with a real closed-form answer (disjoint shapes for
-  `Union`, Circle-Circle and Rectangle-Rectangle for `Intersection`) are
-  still computed exactly.
-- **`Intersection.distance(other)` only handles the empty-overlap case**
-  (returns `math.inf`, since an empty region has no closest point) and
-  raises `NotImplementedError` for a genuine non-empty overlap — finding
-  the closest point of an arbitrary overlap region to a third shape
-  needs that region's actual clipped boundary, which this project
-  doesn't construct (only totals like area/perimeter, not boundary
-  geometry). `Union.distance(other)` doesn't have this limitation
-  (`min` of the two members always makes sense).
+- **`Union.perimeter()`/`Intersection.perimeter()` only refuse the one
+  genuinely hard case: a *partial* Circle-Rectangle overlap.** Every
+  other case — disjoint shapes, Circle-Circle overlap, Rectangle-
+  Rectangle overlap, and full containment of any shape by any other
+  shape (including a Circle fully inside a Rectangle or vice versa) —
+  has a real closed-form answer and is computed exactly:
+  - **Circle-Circle union**: each circle's own circumference, minus
+    the arc "swallowed" by sitting inside the other circle.
+  - **Rectangle-Rectangle union**: `perimeter(A) + perimeter(B) -
+    perimeter(overlap rectangle)` — verified against a hand-traced
+    example in the union tests.
+  - **Full containment (any pair)**: the union is just the containing
+    shape's own perimeter; the intersection is just the contained
+    shape's own perimeter. This uses a cheap, *exact* containment
+    check (`_overlap.fully_contains`) — no Monte Carlo needed even for
+    Circle-Rectangle, since "does A fully swallow B" is a much easier
+    question than "what's the exact overlap boundary".
+  - Only a genuine *partial* Circle-Rectangle overlap — where the
+    boundary is a real mix of straight edges and a circular arc —
+    still needs actual polygon-clipping machinery that's out of scope
+    here, and raises `NotImplementedError` rather than guessing.
+- **`Intersection.distance(other)` handles the empty-overlap case**
+  (returns `math.inf`, since an empty region has no closest point) **and
+  full containment** (the intersection is exactly the smaller shape, so
+  its distance is just that shape's own `distance()`), but raises
+  `NotImplementedError` for a genuine *partial* overlap — finding the
+  closest point of an arbitrary overlap region to a third shape needs
+  that region's actual clipped boundary, which this project doesn't
+  construct for partial overlaps. `Union.distance(other)` doesn't have
+  this limitation (`min` of the two members always makes sense).
 - No unit test suite for the pre-existing Point/Line/Circle/Rectangle
-  shapes yet — `tests/test_union.py` and `tests/test_intersection.py`
-  (new) only cover `Union`/`Intersection`.
+  shapes yet — `tests/test_union.py`, `tests/test_intersection.py`, and
+  `tests/test_repl_error_handling.py` (new) only cover
+  `Union`/`Intersection`/REPL error handling.
 - Line-Line distance for non-intersecting segments checks only the four
   endpoint-to-opposite-segment distances; this is provably sufficient
   for straight segments (the closest pair between two disjoint convex
@@ -201,3 +229,21 @@ of which are language/arithmetic utilities rather than geometry logic.
   assignment models `Line` as a segment (via two `Point`s) rather than
   an infinite line — went with segment distance as the more intuitive,
   practically useful choice.
+- A real bug surfaced during manual testing: `run_repl()`'s exception
+  handler listed specific exception types to catch, but
+  `NotImplementedError` (used by `Union`/`Intersection` for genuinely
+  unsupported cases) wasn't among them — so instead of printing a clean
+  `Error: ...` line, it crashed the whole REPL process with a
+  traceback. Fixed by adding it to the caught types, and locked in with
+  a regression test (`tests/test_repl_error_handling.py`) that
+  statically scans every exception type raised anywhere under `shapes/`
+  and asserts the REPL's handler covers all of them — so this class of
+  bug can't silently reappear if a future `raise` is added without
+  updating the handler.
+- The same bug report also prompted tightening `Union`/`Intersection`
+  perimeter support: the first version refused *any* overlapping
+  shape pair with a blanket `NotImplementedError`, which was more
+  conservative than necessary — Circle-Circle overlap, Rectangle-
+  Rectangle overlap, and full containment of any shape pair all have
+  real closed-form perimeter formulas (see "Design" above). Only a
+  genuine *partial* Circle-Rectangle overlap remains unsupported.
