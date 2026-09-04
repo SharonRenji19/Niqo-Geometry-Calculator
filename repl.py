@@ -19,8 +19,9 @@ import re
 from shapes.point import Point
 from shapes.line import Line
 from shapes.circle import Circle
+from shapes.rectangle import Rectangle
 
-CLASSES = {"Point": Point, "Line": Line, "Circle": Circle}
+CLASSES = {"Point": Point, "Line": Line, "Circle": Circle, "Rectangle": Rectangle}
 
 _TOKEN_RE = re.compile(
     r"""

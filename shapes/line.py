@@ -27,10 +27,18 @@ class Line(Shape):
         return self.length()
 
     def distance(self, other: "Shape") -> float:
+        # Imported lazily to avoid circular imports between the shape modules.
+        from .circle import Circle
+        from .rectangle import Rectangle
+
         if isinstance(other, Point):
             return self._distance_to_point(other)
         if isinstance(other, Line):
             return self._distance_to_line(other)
+        if isinstance(other, (Circle, Rectangle)):
+            # Both Circle and Rectangle implement the Line case explicitly,
+            # so delegating here is safe and won't bounce back.
+            return other.distance(self)
         raise TypeError(
             f"Cannot compute distance between Line and {type(other).__name__}"
         )

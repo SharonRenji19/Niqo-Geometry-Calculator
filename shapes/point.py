@@ -22,12 +22,13 @@ class Point(Shape):
         # Imported lazily to avoid circular imports between the shape modules.
         from .line import Line
         from .circle import Circle
+        from .rectangle import Rectangle
 
         if isinstance(other, Point):
             return math.hypot(self.x - other.x, self.y - other.y)
-        if isinstance(other, (Line, Circle)):
-            # Line and Circle already know how to measure distance to a
-            # point; reuse that logic instead of duplicating it here.
+        if isinstance(other, (Line, Circle, Rectangle)):
+            # These shapes already know how to measure distance to a point;
+            # reuse that logic instead of duplicating it here.
             return other.distance(self)
         raise TypeError(
             f"Cannot compute distance between Point and {type(other).__name__}"
