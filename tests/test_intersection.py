@@ -83,11 +83,12 @@ class TestIntersectionCircleRectangle(unittest.TestCase):
             Intersection(c, r).area(), Intersection(r, c).area(), delta=0.5
         )
 
-    def test_perimeter_raises_not_implemented(self):
+    def test_partial_overlap_perimeter_matches_shapely(self):
+        # Verified against Shapely for this exact case:
+        # intersection perimeter = 20.07599925398.
         c = Circle(Point(5, 0), 4)
         r = Rectangle(Point(0, -3), Point(6, 3))
-        with self.assertRaises(NotImplementedError):
-            Intersection(c, r).perimeter()
+        self.assertAlmostEqual(Intersection(c, r).perimeter(), 20.07599925398, places=5)
 
     def test_distance_raises_not_implemented_when_overlapping(self):
         c = Circle(Point(5, 0), 4)

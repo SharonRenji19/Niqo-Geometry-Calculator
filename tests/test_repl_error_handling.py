@@ -64,20 +64,22 @@ class TestReplSurvivesEveryExceptionShapesCanRaise(unittest.TestCase):
             "printing a clean 'Error: ...' line.",
         )
 
-    def test_union_perimeter_not_implemented_error_prints_cleanly(self):
+    def test_intersection_distance_not_implemented_error_prints_cleanly(self):
         # A direct, concrete repro of the exact bug: exercises
         # evaluate_line() (what run_repl() calls per line) the same way
         # the REPL loop does, and confirms it raises the *same* exception
         # type run_repl()'s except clause is asserted (above) to catch.
-        # NOTE: this uses a genuinely *partial* Circle-Rectangle overlap
-        # (Circle-Rectangle full containment is now handled exactly —
-        # see test_previously_reported_scenario_now_works_correctly below).
+        # NOTE: Union/Intersection.perimeter() for Circle-Rectangle now
+        # has an exact solution (see shapes/_overlap.py), so this uses
+        # Intersection.distance() for a genuinely partial overlap instead
+        # — that one's still out of scope (see the README).
         env = {}
         repl.evaluate_line("c = Circle(Point(5, 0), 4)", env)
         repl.evaluate_line("r = Rectangle(Point(0, -3), Point(6, 3))", env)
-        repl.evaluate_line("u = Union(c, r)", env)
+        repl.evaluate_line("i = Intersection(c, r)", env)
+        repl.evaluate_line("p = Point(100, 100)", env)
         with self.assertRaises(NotImplementedError):
-            repl.evaluate_line("u.perimeter()", env)
+            repl.evaluate_line("i.distance(p)", env)
 
     def test_repl_env_survives_a_not_implemented_error(self):
         # Even though evaluate_line() propagates the exception (run_repl()
@@ -86,13 +88,14 @@ class TestReplSurvivesEveryExceptionShapesCanRaise(unittest.TestCase):
         env = {}
         repl.evaluate_line("c = Circle(Point(5, 0), 4)", env)
         repl.evaluate_line("r = Rectangle(Point(0, -3), Point(6, 3))", env)
-        repl.evaluate_line("u = Union(c, r)", env)
+        repl.evaluate_line("i = Intersection(c, r)", env)
+        repl.evaluate_line("p = Point(100, 100)", env)
         try:
-            repl.evaluate_line("u.perimeter()", env)
+            repl.evaluate_line("i.distance(p)", env)
         except NotImplementedError:
             pass
-        # u (and everything before it) should still be usable afterward.
-        result = repl.evaluate_line("u.area()", env)
+        # i (and everything before it) should still be usable afterward.
+        result = repl.evaluate_line("i.area()", env)
         self.assertIsNotNone(result)
 
     def test_originally_reported_scenario_now_works_correctly(self):

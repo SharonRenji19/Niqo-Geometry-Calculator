@@ -79,11 +79,12 @@ class TestUnionOverlappingShapes(unittest.TestCase):
         c2 = Circle(Point(0, 0), 5)
         self.assertAlmostEqual(Union(c1, c2).perimeter(), c1.perimeter(), places=6)
 
-    def test_circle_rectangle_overlap_perimeter_raises_not_implemented(self):
+    def test_circle_rectangle_partial_overlap_perimeter_matches_shapely(self):
+        # Verified against Shapely (an independent geometry library) for
+        # this exact case: union perimeter = 29.056741969536997.
         c = Circle(Point(5, 0), 4)
         r = Rectangle(Point(0, -3), Point(6, 3))
-        with self.assertRaises(NotImplementedError):
-            Union(c, r).perimeter()
+        self.assertAlmostEqual(Union(c, r).perimeter(), 29.056741974738348, places=5)
 
     def test_circle_fully_inside_rectangle_area_matches_rectangle(self):
         # Exact answer: intersection == the circle's whole area, so the
