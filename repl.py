@@ -244,7 +244,15 @@ def run_repl() -> None:
             output = evaluate_line(line, env)
             if output is not None:
                 print(output)
-        except (SyntaxError, NameError, TypeError, ValueError, AttributeError, ZeroDivisionError) as exc:
+        except (
+            SyntaxError,
+            NameError,
+            TypeError,
+            ValueError,
+            AttributeError,
+            ZeroDivisionError,
+            NotImplementedError,
+        ) as exc:
             print(f"Error: {exc}")
 
 
