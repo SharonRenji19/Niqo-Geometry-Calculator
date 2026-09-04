@@ -78,14 +78,14 @@ iIntersection((center=(0, 0), r=5), (x: 3..9, y: 3..9))
   two shapes.
   - `area()` uses inclusion-exclusion: `|A| + |B| - |A ∩ B|`, via
     `_overlap.intersection_area()`.
-  - `perimeter()` is exact for disjoint shapes (plain sum), full
-    containment of any shape pair (just the containing shape's own
+  - `perimeter()` is exact for every case: disjoint shapes (plain sum),
+    full containment of any shape pair (just the containing shape's own
     perimeter), Circle-Circle overlap (each circle's circumference minus
-    the swallowed arc), and Rectangle-Rectangle overlap
-    (`perimeter(A) + perimeter(B) - perimeter(overlap)`). Only a
-    *partial* Circle-Rectangle overlap raises `NotImplementedError` (see
-    "Known issues") — that's the one boundary shape (straight edges +
-    a circular arc) this project doesn't construct.
+    the swallowed arc), Rectangle-Rectangle overlap
+    (`perimeter(A) + perimeter(B) - perimeter(overlap)`), and even a
+    genuinely *partial* Circle-Rectangle overlap — see "Known issues"
+    for how that last one works (it's more involved, but still exact,
+    no approximation).
   - `distance(other)` is `min(shape_a.distance(other), shape_b.distance(other))`
     — the union's closest point to another shape is whichever member is closer.
   - `contains(point)` is `shape_a.contains(point) or shape_b.contains(point)`.
@@ -97,12 +97,12 @@ iIntersection((center=(0, 0), r=5), (x: 3..9, y: 3..9))
   - `area()` calls the same `_overlap.intersection_area()` `Union` uses
     (exact for Circle-Circle/Rectangle-Rectangle/anything with a
     Point-Line, Monte Carlo for Circle-Rectangle).
-  - `perimeter()` is exact for full containment of any shape pair (the
-    intersection is just the *smaller*, fully-swallowed shape's own
-    perimeter), Circle-Circle (arc-length formula for the lens shape),
-    and Rectangle-Rectangle (the overlap is itself a rectangle); `0.0`
-    when there's no overlap at all; and raises `NotImplementedError`
-    only for a genuine *partial* Circle-Rectangle overlap (see "Known
+  - `perimeter()` is exact for every case, the mirror image of `Union`'s:
+    full containment of any shape pair (the intersection is just the
+    *smaller*, fully-swallowed shape's own perimeter), Circle-Circle
+    (arc-length formula for the lens shape), Rectangle-Rectangle (the
+    overlap is itself a rectangle), `0.0` when there's no overlap at
+    all, and a genuinely *partial* Circle-Rectangle overlap (see "Known
     issues").
   - `distance(other)` returns `math.inf` when the two shapes don't
     overlap at all (an empty region has no closest point), the smaller
@@ -166,22 +166,52 @@ of which are language/arithmetic utilities rather than geometry logic.
 
 ## Known issues / not yet implemented
 
-- **Overlap area for Circle + Rectangle is approximate, not exact.** There's
-  no simple closed-form formula for the area where a circle and an
-  axis-aligned rectangle overlap (it requires case-by-case clipping of
-  the circle's arc against up to 4 straight edges). Rather than pull in
-  a computational-geometry library — explicitly disallowed for core
-  calculator logic — `_overlap.py` estimates this one case with Monte
-  Carlo sampling (200,000 random points inside the overlap's bounding
-  box, fixed seed `1729` for determinism), which is typically within
-  ~0.5% of the true value. Every other shape pair (Circle-Circle,
-  Rectangle-Rectangle, and anything involving a Point/Line) is exact.
-- **`Union.perimeter()`/`Intersection.perimeter()` only refuse the one
-  genuinely hard case: a *partial* Circle-Rectangle overlap.** Every
-  other case — disjoint shapes, Circle-Circle overlap, Rectangle-
-  Rectangle overlap, and full containment of any shape by any other
-  shape (including a Circle fully inside a Rectangle or vice versa) —
-  has a real closed-form answer and is computed exactly:
+- **Overlap *area* for Circle + Rectangle is approximate, not exact** (its
+  *perimeter* is exact — see below). There's no simple closed-form
+  formula for the *area* where a circle and an axis-aligned rectangle
+  overlap without tracing the actual clipped polygon-plus-arc boundary
+  and integrating it, which is meaningfully more work than the
+  perimeter case. Rather than pull in a computational-geometry library
+  — explicitly disallowed for core calculator logic — `_overlap.py`
+  estimates area with Monte Carlo sampling (200,000 random points
+  inside the overlap's bounding box, fixed seed `1729` for
+  determinism), which is typically within ~0.5% of the true value.
+  Every other shape pair's area (Circle-Circle, Rectangle-Rectangle,
+  and anything involving a Point/Line) is exact.
+- **`Union.perimeter()`/`Intersection.perimeter()` are exact for every
+  case, including a genuinely *partial* Circle-Rectangle overlap.**
+  Initially this project treated Circle-Rectangle overlap as too hard
+  to solve exactly for perimeter and raised `NotImplementedError` — but
+  it turns out perimeter (a 1-D boundary length) doesn't need the full
+  clipped-polygon machinery area does; it only needs to classify pieces
+  of the boundary as in/out, not trace an ordered closed loop. The
+  general algorithm (`shapes/_overlap.py`, `_circle_rectangle_boundary_pieces`
+  and the two `circle_rectangle_*_perimeter` functions):
+  1. Finds every point where the circle crosses one of the rectangle's
+     4 edges (a circle crosses any straight line in at most 2 points,
+     so this is bounded and simple — no iterative/numerical solving).
+  2. Splits each rectangle edge into sub-segments at those crossings,
+     and splits the circle into arcs at those same crossings (converted
+     to angles).
+  3. Classifies each sub-segment/arc as inside or outside the *other*
+     shape by testing its midpoint.
+  4. Sums the pieces that are outside (for `Union`) or inside (for
+     `Intersection`) the other shape.
+
+  This handles every topology correctly — including a rectangle edge
+  the circle crosses *twice* (acting as a chord) and a circle poking
+  through two, three, or all four rectangle edges at once — verified
+  against [Shapely](https://shapely.readthedocs.io/) (an independent,
+  mature geometry library used only offline to *generate* the expected
+  test values in `tests/test_circle_rectangle_boundary.py` — it is
+  **not** a runtime dependency of this project) across thousands of
+  randomized configurations plus several hand-picked tricky cases, all
+  matching to floating-point precision. Full containment of any shape
+  pair (including Circle-Rectangle) is handled separately and even more
+  cheaply via `_overlap.fully_contains` — an exact, no-crossings-needed
+  check — before this general algorithm is even reached.
+
+  Other closed-form cases, also exact:
   - **Circle-Circle union**: each circle's own circumference, minus
     the arc "swallowed" by sitting inside the other circle.
   - **Rectangle-Rectangle union**: `perimeter(A) + perimeter(B) -
@@ -189,14 +219,7 @@ of which are language/arithmetic utilities rather than geometry logic.
     example in the union tests.
   - **Full containment (any pair)**: the union is just the containing
     shape's own perimeter; the intersection is just the contained
-    shape's own perimeter. This uses a cheap, *exact* containment
-    check (`_overlap.fully_contains`) — no Monte Carlo needed even for
-    Circle-Rectangle, since "does A fully swallow B" is a much easier
-    question than "what's the exact overlap boundary".
-  - Only a genuine *partial* Circle-Rectangle overlap — where the
-    boundary is a real mix of straight edges and a circular arc —
-    still needs actual polygon-clipping machinery that's out of scope
-    here, and raises `NotImplementedError` rather than guessing.
+    shape's own perimeter.
 - **`Intersection.distance(other)` handles the empty-overlap case**
   (returns `math.inf`, since an empty region has no closest point) **and
   full containment** (the intersection is exactly the smaller shape, so
@@ -241,9 +264,16 @@ of which are language/arithmetic utilities rather than geometry logic.
   bug can't silently reappear if a future `raise` is added without
   updating the handler.
 - The same bug report also prompted tightening `Union`/`Intersection`
-  perimeter support: the first version refused *any* overlapping
-  shape pair with a blanket `NotImplementedError`, which was more
-  conservative than necessary — Circle-Circle overlap, Rectangle-
-  Rectangle overlap, and full containment of any shape pair all have
-  real closed-form perimeter formulas (see "Design" above). Only a
-  genuine *partial* Circle-Rectangle overlap remains unsupported.
+  perimeter support twice over. First pass: the initial version refused
+  *any* overlapping shape pair with a blanket `NotImplementedError`,
+  which was more conservative than necessary — Circle-Circle overlap,
+  Rectangle-Rectangle overlap, and full containment of any shape pair
+  all have real closed-form perimeter formulas (see "Design" above).
+  Second pass: even the remaining *partial* Circle-Rectangle overlap
+  turned out to be solvable exactly (see "Known issues" for the
+  boundary-decomposition algorithm) — the earlier `NotImplementedError`
+  there wasn't a fundamental limit, just an underestimate of how much
+  simpler *perimeter* (a 1-D boundary length) is than *area* (the actual
+  hard 2-D clipping problem, still Monte-Carlo-approximated). Verified
+  against Shapely across thousands of randomized configurations before
+  trusting it enough to ship.
