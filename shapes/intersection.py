@@ -51,15 +51,14 @@ class Intersection(Shape):
             return _overlap.circle_circle_intersection_perimeter(a, b)
         if isinstance(a, Rectangle) and isinstance(b, Rectangle):
             return _overlap.rectangle_rectangle_intersection_perimeter(a, b)
+        if isinstance(a, Circle) and isinstance(b, Rectangle):
+            return _overlap.circle_rectangle_intersection_perimeter(a, b)
+        if isinstance(a, Rectangle) and isinstance(b, Circle):
+            return _overlap.circle_rectangle_intersection_perimeter(b, a)
 
         raise NotImplementedError(
-            "Intersection.perimeter() has no closed-form solution for a "
-            f"{type(a).__name__}/{type(b).__name__} *partial* overlap — a "
-            "Circle-clipped-by-a-Rectangle boundary mixes a circular arc "
-            "with straight edges, which needs polygon-clipping machinery "
-            "out of scope here. (Full containment and area() both still "
-            "work exactly/approximately.) See the README's 'Known issues' "
-            "section."
+            f"Intersection.perimeter() doesn't know how to overlap "
+            f"{type(a).__name__} and {type(b).__name__}"
         )
 
     def distance(self, other: "Shape") -> float:
