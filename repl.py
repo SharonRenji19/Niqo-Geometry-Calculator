@@ -20,8 +20,15 @@ from shapes.point import Point
 from shapes.line import Line
 from shapes.circle import Circle
 from shapes.rectangle import Rectangle
+from shapes.union import Union
 
-CLASSES = {"Point": Point, "Line": Line, "Circle": Circle, "Rectangle": Rectangle}
+CLASSES = {
+    "Point": Point,
+    "Line": Line,
+    "Circle": Circle,
+    "Rectangle": Rectangle,
+    "Union": Union,
+}
 
 _TOKEN_RE = re.compile(
     r"""
@@ -217,7 +224,10 @@ def evaluate_line(line: str, env: dict) -> str | None:
 
 def run_repl() -> None:
     env: dict = {}
-    print("Geometric Calculator — supports Point, Line. Type 'exit' to quit.")
+    print(
+        "Geometric Calculator — supports Point, Line, Circle, Rectangle, "
+        "Union. Type 'exit' to quit."
+    )
     while True:
         try:
             line = input("> ").strip()
