@@ -43,6 +43,10 @@ class Line(Shape):
             f"Cannot compute distance between Line and {type(other).__name__}"
         )
 
+    def contains(self, point: Point) -> bool:
+        """Is `point` on this segment (used by Union for area/membership tests)?"""
+        return math.isclose(self._distance_to_point(point), 0.0, abs_tol=1e-9)
+
     def _distance_to_point(self, point: Point) -> float:
         """Shortest distance from `point` to this *segment* (not the infinite line)."""
         x1, y1 = self.p1.x, self.p1.y

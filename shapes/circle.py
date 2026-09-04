@@ -41,6 +41,10 @@ class Circle(Shape):
             f"Cannot compute distance between Circle and {type(other).__name__}"
         )
 
+    def contains(self, point: Point) -> bool:
+        """Is `point` inside or on this circle (used by Union for area/membership tests)?"""
+        return self.center.distance(point) <= self.radius + 1e-9
+
     def _distance_to_point(self, point: Point) -> float:
         center_dist = self.center.distance(point)
         # 0 whenever the point is inside or on the circle, not negative.

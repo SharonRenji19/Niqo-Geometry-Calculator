@@ -34,6 +34,10 @@ class Point(Shape):
             f"Cannot compute distance between Point and {type(other).__name__}"
         )
 
+    def contains(self, point: "Point") -> bool:
+        """A Point 'contains' only itself (used by Union for area/membership tests)."""
+        return self == point
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Point):
             return NotImplemented
