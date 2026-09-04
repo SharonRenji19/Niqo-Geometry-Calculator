@@ -1,7 +1,8 @@
 # Geometric Calculator
 
 A small REPL for defining 2D shapes and querying their measurements.
-Currently implements **Point** and **Line** (Circle/Rectangle to follow).
+Implements **Point**, **Line**, **Circle**, and **Rectangle**, with
+distance supported between every pair of shape types.
 
 ## Setup & Running
 
@@ -31,10 +32,22 @@ l1[10, 10 -> 20, 20]
 
 - `shapes/shape.py` — abstract `Shape` base class defining the common
   interface every shape implements: `area()`, `perimeter()`, `distance(other)`.
-- `shapes/point.py`, `shapes/line.py` — concrete shapes. Distance is
-  implemented per pair of shape types (Point-Point, Point-Line, Line-Line);
-  `Line.distance(Point)` measures to the *segment*, not the infinite line,
-  using the standard clamped-projection formula.
+- `shapes/point.py`, `shapes/line.py`, `shapes/circle.py`,
+  `shapes/rectangle.py` — concrete shapes. `distance()` is implemented
+  per pair of shape types (Point-Point, Point-Line, Circle-Rectangle,
+  etc.) rather than as one generic formula, since each pair needs
+  genuinely different math. `Line.distance(Point)` measures to the
+  *segment*, not the infinite line, using the standard clamped-projection
+  formula. `Rectangle` is axis-aligned, built from two opposite corner
+  Points, and normalizes them internally so it doesn't matter which two
+  opposite corners are passed in.
+  - To avoid every shape needing an explicit case for every other shape,
+    each shape implements distance to shapes "simpler" than itself
+    directly (Circle→Point, Rectangle→Point, Rectangle→Circle, etc.) and
+    delegates to the other shape's method for anything it doesn't handle
+    itself — but only where the other shape is guaranteed to handle it
+    explicitly, so the delegation always terminates and can't bounce
+    back and forth forever.
 - `repl.py` — a small hand-written interpreter:
   - **Tokenizer** (`tokenize`) — regex-based, splits an input line into
     NUMBER / NAME / OP tokens.
@@ -71,9 +84,21 @@ of which are language/arithmetic utilities rather than geometry logic.
   shapes themselves — shape arithmetic (union/intersection) is a
   separate concern to be added as its own methods later.
 
+## Additional assumptions (Circle, Rectangle)
+
+- `Rectangle` is always **axis-aligned** — built from two opposite
+  corners, e.g. `Rectangle(Point(0,0), Point(10,10))`. Rotated rectangles
+  aren't supported; this keeps distance/area math tractable without a
+  general polygon library, which the assignment doesn't ask for.
+- `Circle` requires a strictly positive radius; a zero or negative radius
+  is rejected rather than silently treated as a degenerate point.
+- Distance from a shape to a shape it's "inside of" or overlapping with
+  (e.g. a point inside a circle, two overlapping rectangles) is `0.0`,
+  not negative — distance never goes negative in this calculator.
+
 ## Known issues / not yet implemented
 
-- Circle, Rectangle, and Union/Intersection are not implemented yet.
+- Union / Intersection (optional extra credit) are not implemented yet.
 - No unit test suite yet (planned as automated `pytest` tests, run
   separately from the core no-library constraint since testing tooling
   isn't "core calculator" logic).
@@ -81,6 +106,10 @@ of which are language/arithmetic utilities rather than geometry logic.
   endpoint-to-opposite-segment distances; this is provably sufficient
   for straight segments (the closest pair between two disjoint convex
   sets includes an extreme point) but is worth calling out explicitly.
+- Rectangle-Line distance checks rectangle edges against the line segment
+  for intersection and otherwise takes the minimum over corner/endpoint
+  candidate distances — correct, but more expensive than a closed-form
+  solution would be; fine at this scale.
 
 ## Challenges
 
