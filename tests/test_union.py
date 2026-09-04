@@ -52,11 +52,38 @@ class TestUnionOverlappingShapes(unittest.TestCase):
         r2 = Rectangle(Point(5, 5), Point(15, 15))   # area 100, overlap 5x5=25
         self.assertAlmostEqual(Union(r1, r2).area(), 100 + 100 - 25)
 
-    def test_perimeter_raises_when_shapes_overlap(self):
-        r1 = Rectangle(Point(0, 0), Point(10, 10))
-        r2 = Rectangle(Point(5, 5), Point(15, 15))
+    def test_overlapping_rectangles_perimeter_matches_hand_traced_shape(self):
+        # A = [0,10]x[0,10], B = [3,7]x[5,15] -> B pokes up out of A's top
+        # like a chimney. Hand-tracing that outline gives a perimeter of 50.
+        a = Rectangle(Point(0, 0), Point(10, 10))
+        b = Rectangle(Point(3, 5), Point(7, 15))
+        self.assertAlmostEqual(Union(a, b).perimeter(), 50.0)
+
+    def test_rectangle_fully_inside_another_perimeter_is_the_bigger_ones(self):
+        big = Rectangle(Point(0, 0), Point(10, 10))
+        small = Rectangle(Point(3, 3), Point(7, 7))
+        self.assertAlmostEqual(Union(big, small).perimeter(), big.perimeter())
+
+    def test_overlapping_circles_perimeter_excludes_the_swallowed_arcs(self):
+        c1 = Circle(Point(0, 0), 5)
+        c2 = Circle(Point(6, 0), 5)
+        u = Union(c1, c2)
+        # The union's outer boundary must be shorter than simply adding the
+        # two full circumferences (some of each circle's arc is "inside"
+        # the other one and shouldn't count), but still positive.
+        self.assertLess(u.perimeter(), c1.perimeter() + c2.perimeter())
+        self.assertGreater(u.perimeter(), 0.0)
+
+    def test_identical_circles_perimeter_is_one_circles_circumference(self):
+        c1 = Circle(Point(0, 0), 5)
+        c2 = Circle(Point(0, 0), 5)
+        self.assertAlmostEqual(Union(c1, c2).perimeter(), c1.perimeter(), places=6)
+
+    def test_circle_rectangle_overlap_perimeter_raises_not_implemented(self):
+        c = Circle(Point(5, 0), 4)
+        r = Rectangle(Point(0, -3), Point(6, 3))
         with self.assertRaises(NotImplementedError):
-            Union(r1, r2).perimeter()
+            Union(c, r).perimeter()
 
     def test_circle_fully_inside_rectangle_area_matches_rectangle(self):
         # Exact answer: intersection == the circle's whole area, so the

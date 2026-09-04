@@ -69,28 +69,44 @@ class TestReplSurvivesEveryExceptionShapesCanRaise(unittest.TestCase):
         # evaluate_line() (what run_repl() calls per line) the same way
         # the REPL loop does, and confirms it raises the *same* exception
         # type run_repl()'s except clause is asserted (above) to catch.
+        # NOTE: this uses a genuinely *partial* Circle-Rectangle overlap
+        # (Circle-Rectangle full containment is now handled exactly —
+        # see test_previously_reported_scenario_now_works_correctly below).
         env = {}
-        repl.evaluate_line("c1 = Circle(Point(0, 0), 5)", env)
-        repl.evaluate_line("r1 = Rectangle(Point(0, 0), Point(4, 3))", env)
-        repl.evaluate_line("u1 = Union(c1, r1)", env)
+        repl.evaluate_line("c = Circle(Point(5, 0), 4)", env)
+        repl.evaluate_line("r = Rectangle(Point(0, -3), Point(6, 3))", env)
+        repl.evaluate_line("u = Union(c, r)", env)
         with self.assertRaises(NotImplementedError):
-            repl.evaluate_line("u1.perimeter()", env)
+            repl.evaluate_line("u.perimeter()", env)
 
     def test_repl_env_survives_a_not_implemented_error(self):
         # Even though evaluate_line() propagates the exception (run_repl()
         # is what catches it), the environment dict itself must stay
         # intact and usable for the next line — this checks that.
         env = {}
+        repl.evaluate_line("c = Circle(Point(5, 0), 4)", env)
+        repl.evaluate_line("r = Rectangle(Point(0, -3), Point(6, 3))", env)
+        repl.evaluate_line("u = Union(c, r)", env)
+        try:
+            repl.evaluate_line("u.perimeter()", env)
+        except NotImplementedError:
+            pass
+        # u (and everything before it) should still be usable afterward.
+        result = repl.evaluate_line("u.area()", env)
+        self.assertIsNotNone(result)
+
+    def test_originally_reported_scenario_now_works_correctly(self):
+        # This is the *exact* case that first surfaced the crash: a
+        # Rectangle entirely inside a Circle. It no longer raises at all
+        # — full containment is cheap and exact for every shape pair, so
+        # Union.perimeter() now just returns the containing circle's own
+        # perimeter instead of refusing.
+        env = {}
         repl.evaluate_line("c1 = Circle(Point(0, 0), 5)", env)
         repl.evaluate_line("r1 = Rectangle(Point(0, 0), Point(4, 3))", env)
         repl.evaluate_line("u1 = Union(c1, r1)", env)
-        try:
-            repl.evaluate_line("u1.perimeter()", env)
-        except NotImplementedError:
-            pass
-        # u1 (and everything before it) should still be usable afterward.
-        result = repl.evaluate_line("u1.area()", env)
-        self.assertEqual(result, "78.53981634")
+        result = repl.evaluate_line("u1.perimeter()", env)
+        self.assertEqual(result, "31.41592654")  # 2*pi*5, the circle's own perimeter
 
 
 if __name__ == "__main__":

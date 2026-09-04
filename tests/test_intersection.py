@@ -95,6 +95,21 @@ class TestIntersectionCircleRectangle(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             Intersection(c, r).distance(Point(100, 100))
 
+    def test_full_containment_gives_exact_perimeter_not_an_error(self):
+        # Circle entirely inside Rectangle -> intersection *is* the circle,
+        # so perimeter/distance should work exactly, not raise.
+        c = Circle(Point(5, 5), 2)
+        r = Rectangle(Point(0, 0), Point(10, 10))
+        i = Intersection(c, r)
+        self.assertAlmostEqual(i.perimeter(), c.perimeter())
+        self.assertAlmostEqual(i.distance(Point(100, 100)), c.distance(Point(100, 100)))
+
+    def test_rectangle_fully_inside_circle_gives_exact_perimeter(self):
+        r = Rectangle(Point(-1, -1), Point(1, 1))
+        c = Circle(Point(0, 0), 10)
+        i = Intersection(r, c)
+        self.assertAlmostEqual(i.perimeter(), r.perimeter())
+
 
 class TestIntersectionWithZeroAreaShapes(unittest.TestCase):
     def test_point_inside_circle_has_zero_area_but_is_contained(self):
