@@ -5,16 +5,64 @@ Implements **Point**, **Line**, **Circle**, **Rectangle**, **Union**, and
 **Intersection** (combining/overlapping two shapes), with distance
 supported between every pair of shape types.
 
-## Setup & Running
+## Setup & Running (step-by-step)
 
-Requires Python 3.10+ (uses `list[Token]` / `X | None` type hints). No
-third-party dependencies.
+**Prerequisites:** Python 3.10 or later, nothing else — no pip installs
+needed to run the calculator itself (only the automated tests use one
+extra tool, `pytest`, which is optional — see below).
 
-```bash
-python3 repl.py
-```
+1. **Check your Python version.**
+   ```bash
+   python3 --version
+   ```
+   Needs to say `3.10` or higher (the code uses modern type hints like
+   `list[Token]` and `X | None`). If you're on Windows and `python3`
+   isn't recognized, use `python` instead — same commands otherwise.
 
-Example session:
+2. **Get the code.** Either clone the repo:
+   ```bash
+   git clone https://github.com/SharonRenji19/Niqo-Geometry-Calculator.git
+   cd Niqo-Geometry-Calculator
+   ```
+   or unzip the submitted archive and `cd` into the extracted folder —
+   either way, you should now be in the folder containing `repl.py` and
+   the `shapes/` directory directly (run `ls` / `dir` to confirm).
+
+3. **Run it — no build step, no install step:**
+   ```bash
+   python3 repl.py
+   ```
+   You should see:
+   ```
+   Geometric Calculator — supports Point, Line, Circle, Rectangle, Union, Intersection. Type 'exit' to quit.
+   >
+   ```
+   Try the assignment's own example to confirm it's working:
+   ```
+   > p1 = Point(10, 10)
+   p1(10, 10)
+   > p2 = Point(20, 20)
+   p2(20, 20)
+   > p1.distance(p2)
+   14.14213562
+   ```
+   Type `exit` (or Ctrl+C / Ctrl+D) to quit.
+
+4. **(Optional) Run the automated test suite**, which independently
+   verifies all the area/perimeter/distance math without needing the
+   REPL at all:
+   ```bash
+   python3 -m unittest discover -s tests
+   ```
+   Expect `OK` at the bottom with all tests passing. If `pytest` is
+   installed (`pip install pytest`), `python3 -m pytest` works too and
+   gives slightly more detailed output.
+
+No external dependencies, virtual environment, or `pip install` are
+required for step 3 — only Python's own standard library (`math`, `re`)
+is used anywhere in the core calculator.
+
+## Example session
 
 ```
 > p1 = Point(10, 10)
@@ -229,10 +277,6 @@ of which are language/arithmetic utilities rather than geometry logic.
   that region's actual clipped boundary, which this project doesn't
   construct for partial overlaps. `Union.distance(other)` doesn't have
   this limitation (`min` of the two members always makes sense).
-- No unit test suite for the pre-existing Point/Line/Circle/Rectangle
-  shapes yet — `tests/test_union.py`, `tests/test_intersection.py`, and
-  `tests/test_repl_error_handling.py` (new) only cover
-  `Union`/`Intersection`/REPL error handling.
 - Line-Line distance for non-intersecting segments checks only the four
   endpoint-to-opposite-segment distances; this is provably sufficient
   for straight segments (the closest pair between two disjoint convex
