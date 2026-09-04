@@ -281,7 +281,7 @@ of which are language/arithmetic utilities rather than geometry logic.
   payoff here).
 - `Sphere` requires a strictly positive radius, same as `Circle`.
 
-## Known issues / not yet implemented
+## Known issues 
 
 - **`Box.distance(Line3D)` uses ternary search (a numerical method),
   not a closed-form formula.** In 2D, `Rectangle`'s distance to a `Line`
