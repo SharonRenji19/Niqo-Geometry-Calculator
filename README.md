@@ -410,3 +410,39 @@ of which are language/arithmetic utilities rather than geometry logic.
   hard 2-D clipping problem, still Monte-Carlo-approximated). Verified
   against Shapely across thousands of randomized configurations before
   trusting it enough to ship.
+
+
+## Anything else
+
+A few things worth mentioning that didn't fit neatly elsewhere:
+
+- **The whole cross-shape `distance()` system follows one consistent
+  pattern everywhere** — 2D, 3D, and even Union/Intersection: each shape
+  implements distance to shapes "simpler" than itself directly, and
+  delegates upward only to a shape guaranteed to handle the case
+  explicitly. This is what keeps adding a new shape a bounded,
+  well-defined task (implement its own cases, delegate the rest)
+  instead of an ever-growing matrix of special cases scattered across
+  every file.
+- **Two places in this project use a numerical method instead of a
+  closed-form formula, and I think it's worth being upfront about the
+  difference between them rather than presenting both the same way**:
+  Circle-Rectangle overlap *area* (Monte Carlo sampling) is a genuine
+  approximation — it converges toward the true value but never reaches
+  it exactly. Box-to-Line3D distance (ternary search) is different: the
+  function being minimized is provably convex, so the search converges
+  to the exact answer, just via iteration instead of algebra. Both are
+  documented in "Known issues," but they're not really the same kind of
+  "known issue."
+- **Test coverage grew in two different ways.** Most of it was written
+  after the corresponding shape already existed — still real, automated
+  coverage, but not strict TDD. One case (documented under
+  "Challenges") was genuinely test-first: a bug was found, a test was
+  written to reproduce it, then the fix made that test pass. I'd rather
+  be precise about which is which than claim more process rigor than
+  actually happened.
+- Given the 48-hour window, I prioritized breadth-with-correctness
+  (get every required shape/query genuinely right, verified by tests)
+  over depth-with-approximation (e.g. spending the remaining time only
+  on exact polygon-clipping for Circle-Rectangle overlap). Happy to
+  walk through what an exact version of that would take if useful.
