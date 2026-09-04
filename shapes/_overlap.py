@@ -77,8 +77,26 @@ def circle_circle_intersection_perimeter(c1: Circle, c2: Circle) -> float:
     return r1 * theta1 + r2 * theta2
 
 
+def circle_circle_union_perimeter(c1: Circle, c2: Circle) -> float:
+    """Exact boundary length of the outer outline of two overlapping circles.
+
+    Each circle contributes its own circumference *minus* the arc that
+    gets "swallowed" by sitting inside the other circle — the same
+    swallowed angle used by the intersection lens above.
+    """
+    d = c1.center.distance(c2.center)
+    r1, r2 = c1.radius, c2.radius
+
+    if d <= abs(r1 - r2):
+        return 2 * math.pi * max(r1, r2)  # smaller circle fully inside bigger
+
+    d1, d2, a1, a2 = _circle_circle_overlap_geometry(c1, c2, d)
+    theta1, theta2 = 2 * a1, 2 * a2
+    return (2 * math.pi - theta1) * r1 + (2 * math.pi - theta2) * r2
+
+
 def _circle_circle_overlap_geometry(c1: Circle, c2: Circle, d: float):
-    """Shared trig for the two functions above (only valid for a proper,
+    """Shared trig for the functions above (only valid for a proper,
     partial overlap — callers handle the "disjoint" / "one inside the
     other" cases themselves before reaching here)."""
     r1, r2 = c1.radius, c2.radius
@@ -103,6 +121,31 @@ def rectangle_rectangle_intersection_perimeter(r1: Rectangle, r2: Rectangle) -> 
     if overlap_w <= 0 or overlap_h <= 0:
         return 0.0
     return 2 * (overlap_w + overlap_h)
+
+
+def rectangle_rectangle_union_perimeter(r1: Rectangle, r2: Rectangle) -> float:
+    """Exact perimeter of the outer outline of two overlapping rectangles.
+
+    perimeter(A union B) = perimeter(A) + perimeter(B) - perimeter(overlap),
+    except when one rectangle fully contains the other, in which case the
+    union *is* just the bigger rectangle.
+    """
+    r1_contains_r2 = (
+        r1.min_x <= r2.min_x and r1.max_x >= r2.max_x
+        and r1.min_y <= r2.min_y and r1.max_y >= r2.max_y
+    )
+    r2_contains_r1 = (
+        r2.min_x <= r1.min_x and r2.max_x >= r1.max_x
+        and r2.min_y <= r1.min_y and r2.max_y >= r1.max_y
+    )
+    if r1_contains_r2:
+        return r1.perimeter()
+    if r2_contains_r1:
+        return r2.perimeter()
+
+    overlap_w, overlap_h = _rectangle_overlap_dims(r1, r2)
+    perimeter_overlap = 2 * (overlap_w + overlap_h)
+    return r1.perimeter() + r2.perimeter() - perimeter_overlap
 
 
 def _rectangle_overlap_dims(r1: Rectangle, r2: Rectangle):
@@ -143,3 +186,39 @@ def circle_rectangle_intersection_area(circle: Circle, rect: Rectangle) -> float
         if circle.contains(Point(x, y)):
             hits += 1
     return box_area * hits / MC_SAMPLES
+
+
+def fully_contains(outer, inner) -> bool:
+    """Exact test: is `inner` entirely inside (or equal to) `outer`?
+
+    Covers all four Circle/Rectangle combinations directly with cheap
+    geometric checks (corner-in-circle, bounding-box comparisons) — no
+    Monte Carlo needed, even for Circle-Rectangle, since "does A fully
+    swallow B" is a much easier question than "what's the exact overlap
+    area/boundary". Used to shortcut perimeter (and could shortcut area)
+    for full containment, where the union is simply the bigger shape and
+    the intersection is simply the smaller one.
+    """
+    if isinstance(outer, Circle) and isinstance(inner, Rectangle):
+        corners = [
+            Point(inner.min_x, inner.min_y),
+            Point(inner.max_x, inner.min_y),
+            Point(inner.max_x, inner.max_y),
+            Point(inner.min_x, inner.max_y),
+        ]
+        return all(outer.contains(corner) for corner in corners)
+    if isinstance(outer, Rectangle) and isinstance(inner, Circle):
+        return (
+            outer.min_x <= inner.center.x - inner.radius
+            and outer.max_x >= inner.center.x + inner.radius
+            and outer.min_y <= inner.center.y - inner.radius
+            and outer.max_y >= inner.center.y + inner.radius
+        )
+    if isinstance(outer, Circle) and isinstance(inner, Circle):
+        return outer.center.distance(inner.center) + inner.radius <= outer.radius + 1e-9
+    if isinstance(outer, Rectangle) and isinstance(inner, Rectangle):
+        return (
+            outer.min_x <= inner.min_x and outer.max_x >= inner.max_x
+            and outer.min_y <= inner.min_y and outer.max_y >= inner.max_y
+        )
+    return False

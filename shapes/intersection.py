@@ -36,6 +36,13 @@ class Intersection(Shape):
     def perimeter(self) -> float:
         a, b = self.shape_a, self.shape_b
 
+        # Full containment is cheap and exact for every shape-pair combo:
+        # the intersection is simply the smaller (fully-swallowed) shape.
+        if _overlap.fully_contains(a, b):
+            return b.perimeter()
+        if _overlap.fully_contains(b, a):
+            return a.perimeter()
+
         if self.area() == 0.0:
             # No overlap (or the overlap is a zero-area Point/Line/edge
             # touch) -> an empty or degenerate region has no boundary.
@@ -47,14 +54,24 @@ class Intersection(Shape):
 
         raise NotImplementedError(
             "Intersection.perimeter() has no closed-form solution for a "
-            f"{type(a).__name__}/{type(b).__name__} pair — a Circle-clipped-"
-            "by-a-Rectangle boundary mixes a circular arc with straight "
-            "edges, which needs polygon-clipping machinery out of scope "
-            "here. area() still works (via Monte Carlo sampling). See the "
-            "README's 'Known issues' section."
+            f"{type(a).__name__}/{type(b).__name__} *partial* overlap — a "
+            "Circle-clipped-by-a-Rectangle boundary mixes a circular arc "
+            "with straight edges, which needs polygon-clipping machinery "
+            "out of scope here. (Full containment and area() both still "
+            "work exactly/approximately.) See the README's 'Known issues' "
+            "section."
         )
 
     def distance(self, other: "Shape") -> float:
+        a, b = self.shape_a, self.shape_b
+
+        # Full containment -> the intersection *is* the smaller shape, so
+        # its distance to a third shape is just that shape's own distance.
+        if _overlap.fully_contains(a, b):
+            return b.distance(other)
+        if _overlap.fully_contains(b, a):
+            return a.distance(other)
+
         if self.area() == 0.0 and not self._touches():
             # The two shapes don't even meet, so their intersection is the
             # empty set. Distance from an empty region is conventionally
@@ -62,13 +79,13 @@ class Intersection(Shape):
             return math.inf
 
         raise NotImplementedError(
-            "Intersection.distance(other) isn't supported for a non-empty "
-            "overlap: finding the closest point of an arbitrary overlap "
-            "region to a third shape needs the region's actual clipped "
-            "boundary, which this project doesn't construct (see "
-            "shapes/_overlap.py — it only computes area/perimeter "
-            "totals, not the boundary geometry itself). See the README's "
-            "'Known issues' section."
+            "Intersection.distance(other) isn't supported for a *partial*, "
+            "non-empty overlap: finding the closest point of an arbitrary "
+            "overlap region to a third shape needs the region's actual "
+            "clipped boundary, which this project doesn't construct (see "
+            "shapes/_overlap.py — it only computes area/perimeter totals, "
+            "not the boundary geometry itself). See the README's 'Known "
+            "issues' section."
         )
 
     def contains(self, point: Point) -> bool:

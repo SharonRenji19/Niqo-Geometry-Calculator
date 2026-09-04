@@ -1,7 +1,9 @@
 """Union of two shapes: the single region covered by either one of them."""
 
 from . import _overlap
+from .circle import Circle
 from .point import Point
+from .rectangle import Rectangle
 from .shape import Shape
 
 
@@ -14,9 +16,9 @@ class Union(Shape):
     ``Union`` can be nested inside another ``Union`` to combine more than
     two shapes: ``Union(Union(a, b), c)``.
 
-    See ``shapes/_overlap.py`` for how the overlap area between the two
-    members is actually computed (exact for most shape pairs, Monte Carlo
-    approximated for Circle-Rectangle).
+    See ``shapes/_overlap.py`` for how the overlap area/perimeter between
+    the two members is actually computed (exact for most shape pairs,
+    Monte Carlo approximated for Circle-Rectangle area).
     """
 
     def __init__(self, shape_a: Shape, shape_b: Shape):
@@ -36,15 +38,34 @@ class Union(Shape):
         )
 
     def perimeter(self) -> float:
-        if self._touches_or_overlaps():
-            raise NotImplementedError(
-                "Union.perimeter() is only supported for two shapes that "
-                "don't touch or overlap. The exact outer boundary length of "
-                "two merged, overlapping shapes needs polygon-clipping / "
-                "boundary-tracing machinery that's out of scope here — see "
-                "the README's 'Known issues' section."
-            )
-        return self.shape_a.perimeter() + self.shape_b.perimeter()
+        a, b = self.shape_a, self.shape_b
+
+        # Full containment is cheap and exact for every shape-pair combo
+        # (no arc-clipping needed): the union is simply the bigger shape.
+        if _overlap.fully_contains(a, b):
+            return a.perimeter()
+        if _overlap.fully_contains(b, a):
+            return b.perimeter()
+
+        if _overlap.intersection_area(a, b) == 0.0:
+            # No shared *area* -- even if the two shapes touch at a single
+            # point or along an edge, that contributes zero boundary
+            # length, so a plain sum is still exact.
+            return a.perimeter() + b.perimeter()
+        if isinstance(a, Circle) and isinstance(b, Circle):
+            return _overlap.circle_circle_union_perimeter(a, b)
+        if isinstance(a, Rectangle) and isinstance(b, Rectangle):
+            return _overlap.rectangle_rectangle_union_perimeter(a, b)
+
+        raise NotImplementedError(
+            "Union.perimeter() has no closed-form solution for a "
+            f"{type(a).__name__}/{type(b).__name__} *partial* overlap — a "
+            "Circle clipped by a Rectangle mixes a circular arc with "
+            "straight edges, which needs polygon-clipping machinery out "
+            "of scope here. (Full containment and area() both still work "
+            "exactly/approximately.) See the README's 'Known issues' "
+            "section."
+        )
 
     def distance(self, other: "Shape") -> float:
         # The union's closest point to `other` is whichever member shape is closer.
@@ -52,14 +73,6 @@ class Union(Shape):
 
     def contains(self, point: Point) -> bool:
         return self.shape_a.contains(point) or self.shape_b.contains(point)
-
-    # ---- helpers ----------------------------------------------------------
-
-    def _touches_or_overlaps(self) -> bool:
-        # distance() between the two members is already exact (no sampling)
-        # for every pair this project supports, so reuse it as a cheap,
-        # exact overlap test instead of re-deriving one.
-        return self.shape_a.distance(self.shape_b) <= 1e-9
 
     def __repr__(self) -> str:
         return f"Union({self.shape_a!r}, {self.shape_b!r})"
