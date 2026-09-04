@@ -21,6 +21,7 @@ from shapes.line import Line
 from shapes.circle import Circle
 from shapes.rectangle import Rectangle
 from shapes.union import Union
+from shapes.intersection import Intersection
 
 CLASSES = {
     "Point": Point,
@@ -28,6 +29,7 @@ CLASSES = {
     "Circle": Circle,
     "Rectangle": Rectangle,
     "Union": Union,
+    "Intersection": Intersection,
 }
 
 _TOKEN_RE = re.compile(
@@ -226,7 +228,7 @@ def run_repl() -> None:
     env: dict = {}
     print(
         "Geometric Calculator — supports Point, Line, Circle, Rectangle, "
-        "Union. Type 'exit' to quit."
+        "Union, Intersection. Type 'exit' to quit."
     )
     while True:
         try:
