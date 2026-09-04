@@ -19,8 +19,14 @@ extra tool, `pytest`, which is optional — see below).
    python3 --version
    ```
    Needs to say `3.10` or higher (the code uses modern type hints like
-   `list[Token]` and `X | None`). If you're on Windows and `python3`
-   isn't recognized, use `python` instead — same commands otherwise.
+   `list[Token]` and `X | None`).
+
+   **On Windows**, `python3` commonly isn't set up — running it may
+   print a message about installing Python from the Microsoft Store
+   even when Python is already installed. Use `python` instead
+   (`py` also works if that's set up on your machine); the rest of the
+   commands below are identical either way, just swap `python3` for
+   whichever one resolves on your system.
 
 2. **Get the code.** Either clone the repo:
    ```bash
