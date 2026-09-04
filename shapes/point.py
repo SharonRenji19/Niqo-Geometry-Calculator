@@ -19,14 +19,15 @@ class Point(Shape):
         return 0.0
 
     def distance(self, other: "Shape") -> float:
-        # Imported lazily to avoid a circular import between point.py and line.py.
+        # Imported lazily to avoid circular imports between the shape modules.
         from .line import Line
+        from .circle import Circle
 
         if isinstance(other, Point):
             return math.hypot(self.x - other.x, self.y - other.y)
-        if isinstance(other, Line):
-            # A line already knows how to measure the distance to a point;
-            # reuse that logic instead of duplicating it here.
+        if isinstance(other, (Line, Circle)):
+            # Line and Circle already know how to measure distance to a
+            # point; reuse that logic instead of duplicating it here.
             return other.distance(self)
         raise TypeError(
             f"Cannot compute distance between Point and {type(other).__name__}"
